@@ -10,6 +10,8 @@ import com.example.data.request.CreateTaskRequest
 import com.example.data.request.UpdateTaskRequest
 import com.example.data.request.toTask
 import com.example.data.response.SimpleResponse
+import com.example.utils.ErrorCodes
+import com.example.utils.SuccessCodes
 
 class TaskServiceImpl constructor(
     private val taskRepository: TaskRepository,
@@ -23,14 +25,14 @@ class TaskServiceImpl constructor(
     override suspend fun insert(createTaskRequest: CreateTaskRequest): SimpleResponse {
         val result = validateCreateTaskRequest(createTaskRequest)
         if (!result) {
-            return SimpleResponse(success = false, message = "Preencha todos os campos")
+            return SimpleResponse(success = false, message = ErrorCodes.EMPTY_FIELDS.message)
         }
 
         val insert = taskRepository.insert(task = createTaskRequest.toTask())
         if (!insert) {
-            return SimpleResponse(success = false, message = "Erro ao cadastrar a task", statusCode = 400)
+            return SimpleResponse(success = false, message = ErrorCodes.REGISTER_TASK.message, statusCode = 400)
         }
-        return SimpleResponse(success = true, message = "Tarefa cadastrada com sucesso", statusCode = 201)
+        return SimpleResponse(success = true, message = SuccessCodes.REGISTER_TASK.message, statusCode = 201)
     }
 
     override suspend fun getTaskById(taskId: String): Task? {
@@ -38,16 +40,16 @@ class TaskServiceImpl constructor(
     }
 
     override suspend fun update(taskId: String, updateTaskRequest: UpdateTaskRequest): SimpleResponse {
-        val task = getTaskById(taskId) ?: return SimpleResponse(success = false, message = "task não encontrada", statusCode = 404)
+        val task = getTaskById(taskId) ?: throw TaskNotFoundException(ErrorCodes.TASK_NOT_FOUND.message)
 
         val result = validateUpdateTaskRequest(updateTaskRequest)
         if(!result) {
-            return SimpleResponse(success = false, message = "Preencha todos os campos")
+            return SimpleResponse(success = false, message = ErrorCodes.EMPTY_FIELDS.message)
         }
 
         return when(taskRepository.update(taskId, updateTaskRequest, task)){
-            true -> SimpleResponse(success = true, message = "Tarefa atualizada com sucesso", statusCode = 200)
-            false -> SimpleResponse(success = false, message = "Erro ao atulizar tarefa", statusCode = 400)
+            true -> SimpleResponse(success = true, message = SuccessCodes.UPDATE_TASK.message, statusCode = 200)
+            false -> SimpleResponse(success = false, message = ErrorCodes.UPDATE_TASK.message, statusCode = 400)
         }
     }
 
@@ -56,13 +58,13 @@ class TaskServiceImpl constructor(
 
         if (task != null){
             return if (taskRepository.delete(task.id)){
-                SimpleResponse(success = true, message = "Tarefa deletada com sucesso", statusCode = 200)
+                SimpleResponse(success = true, message = SuccessCodes.DELETE_TASK.message, statusCode = 200)
             } else{
-                SimpleResponse(success = false, message = "Erro ao atualizar a tarefa", statusCode = 400)
+                SimpleResponse(success = false, message = ErrorCodes.DELETE_TASK.message, statusCode = 400)
             }
         }
 
-        throw TaskNotFoundException("Nenhuma tarefa com o id $taskId, foi encontrada")
+        throw TaskNotFoundException(ErrorCodes.TASK_NOT_FOUND.message)
     }
 
     override suspend fun complete(taskId: String): SimpleResponse {
@@ -70,10 +72,10 @@ class TaskServiceImpl constructor(
         task?.let { taskFound ->
             val modifiedCount = taskRepository.completeTask(taskFound.id)
             if (modifiedCount > 0){
-                return SimpleResponse(success = true, message = "Task concluida com sucesso", statusCode = 200)
+                return SimpleResponse(success = true, message = SuccessCodes.COMPLETE_TASK.message, statusCode = 200)
             }
 
-            return SimpleResponse(success = false, message = "Erro ao concluir tarefa", statusCode = 400)
-        } ?: throw TaskNotFoundException("Nenhuma tarefa com o id $taskId, foi encontrada")
+            return SimpleResponse(success = false, message = ErrorCodes.COMPLETE_TASK.message, statusCode = 400)
+        } ?: throw TaskNotFoundException(ErrorCodes.TASK_NOT_FOUND.message)
     }
 }
